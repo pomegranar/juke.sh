@@ -1,7 +1,7 @@
 # 🎶 juke.sh
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pomegranar/juke.sh/refs/heads/main/jukesh-preview.png" alt="juke.sh screenshot" width="600"/>
+  <img src="https://raw.githubusercontent.com/pomegranar/juke.sh/refs/heads/main/preview.png" alt="juke.sh screenshot" width="600"/>
 </p>
 
 A lightweight, terminal-based music dashboard for [Kitty](https://sw.kovidgoyal.net/kitty/) that shows album art, metadata, and playback controls for any [MPRIS](https://specifications.freedesktop.org/mpris-spec/latest/)-compatible player.
@@ -18,7 +18,7 @@ A lightweight, terminal-based music dashboard for [Kitty](https://sw.kovidgoyal.
 
 ## Installation
 
-Install in user-space:
+Install in user space:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/pomegranar/juke.sh/main/juke.sh -o ~/.local/bin/juke.sh 
@@ -40,6 +40,7 @@ juke.sh
 | Space | Play / Pause   |
 | n     | Next track     |
 | p     | Previous track |
+| q     | Quit           |
 
 ---
 

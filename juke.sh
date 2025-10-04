@@ -129,6 +129,7 @@ while true; do
         " ") playerctl play-pause 2>/dev/null ;;
         n)   playerctl next 2>/dev/null ;;
         p)   playerctl previous 2>/dev/null ;;
+        q|Q) cleanup ;; 
     esac
 
     # metadata (quiet during track gaps)

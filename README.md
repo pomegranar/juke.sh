@@ -1,5 +1,9 @@
 # 🎶 juke.sh
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pomegranar/juke.sh/main/assets/jukesh-preview.png" alt="juke.sh screenshot" width="480"/>
+</p>
+
 A lightweight, terminal-based music dashboard for [Kitty](https://sw.kovidgoyal.net/kitty/) that shows album art, metadata, and playback controls for any [MPRIS](https://specifications.freedesktop.org/mpris-spec/latest/)-compatible player.
 
 ---

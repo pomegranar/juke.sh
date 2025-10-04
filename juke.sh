@@ -63,15 +63,26 @@ draw_ui() {
         fi
     fi
 
-    total_w=$((img_w_cells + 4 + TEXT_BOX_WIDTH))
+    total_w=$((img_w_cells + 8 + TEXT_BOX_WIDTH))
     total_h=$img_h_cells
     off_x=$(( (term_w - total_w) / 2 ))
-    off_y=$(( (term_h - total_h) / 2 + 1))
+    aspect_ratio=$(( img_w * 100 / img_h ))
+    if (( aspect_ratio > 160 )); then
+        off_y=$(( (term_h - th) / 2 - 2 ))   # move up slightly
+    else
+        off_y=$(( (term_h - th) / 2 - 4 ))   # move up slightly
+    fi
+
+   
     (( off_x < 0 )) && off_x=0
     (( off_y < 0 )) && off_y=0
 
     text_x=$((off_x + img_w_cells + 4))
-    text_y=$((off_y + img_h_cells / 2 - 2))
+    if (( aspect_ratio > 160 )); then
+        text_y=$((off_y + img_h_cells / 2 - 4))
+    else
+        text_y=$((off_y + img_h_cells / 2 - 2))
+    fi
 
     # draw album art or skeleton with icat at the SAME place/size
     if [[ -f "$art" ]]; then
@@ -127,11 +138,13 @@ while true; do
     album=$(playerctl metadata xesam:album 2>/dev/null)
 
     # redraw on change, resize, or when metadata missing
-    if [[ "$art" != "$last_art" || "$needs_redraw" == "1" || -z "$title" ]]; then
+    if [[ "$needs_redraw" == "1" || "$art" != "$last_art" || "$title" != "$last_title" ]]; then
         draw_ui
         last_art="$art"
+        last_title="$title"
         needs_redraw=0
     fi
+
 
     sleep 0.5
 done

@@ -10,9 +10,10 @@ A lightweight, terminal-based music dashboard for [Kitty](https://sw.kovidgoyal.
 
 ## Dependencies
 
-- A terminal supporting the **Kitty image protocol** (e.g. [Kitty](https://github.com/kovidgoyal/kitty))
+- A terminal supporting the **Kitty image protocol** (e.g. [Kitty](https://github.com/kovidgoyal/kitty), [Ghostty](https://ghostty.org/))
 - [`playerctl`](https://github.com/altdesktop/playerctl)
 - [`ImageMagick`](https://github.com/ImageMagick/ImageMagick)
+- A [`Nerd Font`](https://www.nerdfonts.com/) for your terminal.
 
 ---
 
@@ -31,15 +32,20 @@ Make sure `~/.local/bin` is in your `$PATH`, then run:
 juke.sh
 ```
 
+Now you can run `juke.sh` from anywhere in your terminal!
+
+
+Alternatively, to install as **root**, run the install.sh script (it will prompt for your password).
+
 ---
 
 ## Controls
 
 | Key   | Action         |
 | ----- | -------------- |
-| Space | Play / Pause   |
+| p, space | Play / Pause   |
 | n     | Next track     |
-| p     | Previous track |
+| b     | Back |
 | q     | Quit           |
 
 ---

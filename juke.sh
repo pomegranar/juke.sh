@@ -23,6 +23,7 @@ clear_screen
 TEXT_BOX_WIDTH=40
 needs_redraw=1
 last_art=""
+last_title=""
 # remember last known art size in cells so skeleton matches
 last_w_cells=20
 last_h_cells=10
@@ -30,15 +31,17 @@ last_h_cells=10
 PLACEHOLDER="/tmp/kitty_nowplaying_placeholder.png"
 make_placeholder() {
     if [[ ! -f "$PLACEHOLDER" ]]; then
-        # simple 512x512 dark canvas with centered "No Art"
-        convert -size 512x512 xc:'#1e1e1e' -gravity center \
-            -fill '#6c6c6c' -pointsize 28 -annotate 0 'No Art' \
-            "$PLACEHOLDER" 2>/dev/null || PLACEHOLDER=""
+        if command -v convert >/dev/null 2>&1; then
+            convert -size 512x512 xc:'#1e1e1e' -gravity center \
+                -fill '#6c6c6c' -pointsize 28 -annotate 0 'No Art' \
+                "$PLACEHOLDER" 2>/dev/null || PLACEHOLDER=""
+        else
+            PLACEHOLDER=""  # ImageMagick not available; fall back to text
+        fi
     fi
 }
 
 draw_ui() {
-    # wipe text and image layers
     clear_screen
     kitty +kitten icat --clear 2>/dev/null
 
@@ -48,32 +51,38 @@ draw_ui() {
     cyan='\033[36m'; magenta='\033[35m'; yellow='\033[33m'
     gray='\033[90m'; reset='\033[0m'
 
-    # compute art size in cells
+    # start from last known cell size
     img_w_cells=$last_w_cells
     img_h_cells=$last_h_cells
-    if [[ -f "$art" ]]; then
-        if read img_w img_h < <(identify -format "%w %h" "$art" 2>/dev/null); then
-            # approx kitty cell metrics; tweak if needed
-            tw=$((img_w_cells * img_h_cells / (img_h / 16) ))
-            th=$((img_h / 16))
-            (( tw > 4 )) && img_w_cells=$tw
-            (( th > 4 )) && img_h_cells=$th
+
+    # defaults that won't crash
+    th=$img_h_cells
+    aspect_ratio=100
+
+    # update cell size if we have a local image and identify
+    if [[ -n "$art" && -f "$art" && -r "$art" ]] && command -v identify >/dev/null 2>&1; then
+        if read -r img_w img_h < <(identify -format "%w %h" "$art" 2>/dev/null); then
+            # approximate: 1 cell ~ 8x16 px (tweak if needed)
+            # ensure minimum size of 5x5 cells to avoid weirdness
+            tw=$(( img_w / 8 ))
+            th=$(( img_h / 16 ))
+            (( tw < 5 )) && tw=5
+            (( th < 5 )) && th=5
+            img_w_cells=$tw
+            img_h_cells=$th
             last_w_cells=$img_w_cells
             last_h_cells=$img_h_cells
+            # aspect ratio x100 to avoid float math
+            (( img_h > 0 )) && aspect_ratio=$(( img_w * 100 / img_h ))
         fi
     fi
 
     total_w=$((img_w_cells + 8 + TEXT_BOX_WIDTH))
     total_h=$img_h_cells
-    off_x=$(( (term_w - total_w) / 2 ))
-    aspect_ratio=$(( img_w * 100 / img_h ))
-    if (( aspect_ratio > 160 )); then
-        off_y=$(( (term_h - th) / 2 - 2 ))   # move up slightly
-    else
-        off_y=$(( (term_h - th) / 2 - 4 ))   # move up slightly
-    fi
 
-   
+    # center block
+    off_x=$(( (term_w - total_w) / 2 ))
+    off_y=$(( (term_h - th) / 2 - 2 ))
     (( off_x < 0 )) && off_x=0
     (( off_y < 0 )) && off_y=0
 
@@ -83,43 +92,57 @@ draw_ui() {
     else
         text_y=$((off_y + img_h_cells / 2 - 2))
     fi
+    (( text_y < 0 )) && text_y=0
 
-    # draw album art or skeleton with icat at the SAME place/size
-    if [[ -f "$art" ]]; then
+    # album art, placeholder, or fallback text
+    if [[ -n "$art" && -f "$art" && -r "$art" ]]; then
         kitty +kitten icat \
           --place "${img_w_cells}x${img_h_cells}@${off_x}x${off_y}" \
           "$art" 2>/dev/null
     else
         make_placeholder
-        if [[ -n "$PLACEHOLDER" ]]; then
+        if [[ -n "$PLACEHOLDER" && -f "$PLACEHOLDER" ]]; then
           kitty +kitten icat \
             --place "${img_w_cells}x${img_h_cells}@${off_x}x${off_y}" \
             "$PLACEHOLDER" 2>/dev/null
         else
-          # ultra-fallback: centered text in the art box
           cx=$((off_x + img_w_cells/2 - 5))
           cy=$((off_y + img_h_cells/2))
-          tput cup $cy $cx; printf "${gray}[ No Art ]${reset}"
+          (( cx < 0 )) && cx=0
+          (( cy < 0 )) && cy=0
+          tput cup "$cy" "$cx"; printf "${gray}[ No Art ]${reset}"
         fi
     fi
 
     # info panel
     tput cup $((text_y-2)) $text_x
-    if [[ -n "$title" ]]; then
-        printf "${gray}┌─ Now Playing ─────────────────────────────┐${reset}"
-        tput cup $((text_y-1)) $text_x; printf "${cyan}Title:${reset}  %-34.34s" "$title"
-        tput cup $text_y        $text_x; printf "${magenta}Artist:${reset} %-33.33s" "$artist"
-        tput cup $((text_y+1))  $text_x; printf "${yellow}Album:${reset}  %-34.34s" "$album"
-        tput cup $((text_y+2))  $text_x; printf "${gray}└───────────────────────────────────────────┘${reset}"
-    else
-        printf "${gray}┌─ Waiting for track ───────────────────────┐${reset}"
-        tput cup $text_y $text_x;     printf "${gray}  …loading player metadata…                  ${reset}"
+    if [[ "$ui_state" == "no_player" ]]; then
+        printf "${gray}┌─ No media players ────────────────────────┐${reset}"
+        tput cup $text_y $text_x;       printf "${gray}  Start a player to see Now Playing          ${reset}"
         tput cup $((text_y+2)) $text_x; printf "${gray}└───────────────────────────────────────────┘${reset}"
+    elif [[ "$ui_state" == "no_track" ]]; then
+        printf "${gray}┌─ Waiting for track ───────────────────────┐${reset}"
+        tput cup $text_y $text_x;       printf "${gray}  …no track is currently playing…            ${reset}"
+        tput cup $((text_y+2)) $text_x; printf "${gray}└───────────────────────────────────────────┘${reset}"
+    else
+        printf "${gray}┌─ Now Playing ─────────────────────────────┐${reset}"
+        tput cup $((text_y-1)) $text_x; printf "${cyan}Title:${reset}  %-34.34s" "${title:-—}"
+        tput cup $text_y        $text_x; printf "${magenta}Artist:${reset} %-33.33s" "${artist:-—}"
+        tput cup $((text_y+1))  $text_x; printf "${yellow}Album:${reset}  %-34.34s" "${album:-—}"
+        tput cup $((text_y+2))  $text_x; printf "${gray}└───────────────────────────────────────────┘${reset}"
     fi
 
     # controls
     tput cup $((text_y+4)) $text_x
     printf "${gray}[Space]${reset} Play/Pause   ${gray}[n]${reset} Next   ${gray}[p]${reset} Prev"
+}
+
+# simple helpers
+have_players() {
+    playerctl -l 2>/dev/null | sed '/^\s*$/d' | wc -l | awk '{exit !($1>0)}'
+}
+player_status() {
+    playerctl status 2>/dev/null || true
 }
 
 while true; do
@@ -129,23 +152,45 @@ while true; do
         " ") playerctl play-pause 2>/dev/null ;;
         n)   playerctl next 2>/dev/null ;;
         p)   playerctl previous 2>/dev/null ;;
-        q|Q) cleanup ;; 
+        q|Q) cleanup ;;
     esac
 
-    # metadata (quiet during track gaps)
-    art=$(playerctl metadata mpris:artUrl 2>/dev/null | sed 's|file://||')
-    title=$(playerctl metadata xesam:title 2>/dev/null)
-    artist=$(playerctl metadata xesam:artist 2>/dev/null)
-    album=$(playerctl metadata xesam:album 2>/dev/null)
+    ui_state="playing"
+    art=""
+    title=""
+    artist=""
+    album=""
 
-    # redraw on change, resize, or when metadata missing
-    if [[ "$needs_redraw" == "1" || "$art" != "$last_art" || "$title" != "$last_title" ]]; then
+    if ! have_players; then
+        ui_state="no_player"
+    else
+        status="$(player_status)"
+        case "$status" in
+            Playing|Paused)
+                # metadata (quiet during track gaps)
+                art=$(playerctl metadata mpris:artUrl 2>/dev/null | sed 's|file://||')
+                title=$(playerctl metadata xesam:title 2>/dev/null)
+                artist=$(playerctl metadata xesam:artist 2>/dev/null)
+                album=$(playerctl metadata xesam:album 2>/dev/null)
+                # if everything is empty, treat as no_track
+                if [[ -z "$title$artist$album" ]]; then
+                    ui_state="no_track"
+                fi
+                ;;
+            *)
+                ui_state="no_track"
+                ;;
+        esac
+    fi
+
+    # redraw on change, resize, or when metadata state changes
+    if [[ "$needs_redraw" == "1" || "$art" != "$last_art" || "$title" != "$last_title" || "$ui_state" != "$last_state" ]]; then
         draw_ui
         last_art="$art"
         last_title="$title"
+        last_state="$ui_state"
         needs_redraw=0
     fi
-
 
     sleep 0.5
 done

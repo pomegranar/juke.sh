@@ -49,7 +49,7 @@ draw_ui() {
     term_h=$(tput lines)
 
     cyan='\033[36m'; magenta='\033[35m'; yellow='\033[33m'
-    gray='\033[90m'; reset='\033[0m'
+    gray='\033[90m'; reset='\033[0m';  ugray='\033[4;90m'
 
     # start from last known cell size
     img_w_cells=$last_w_cells
@@ -81,16 +81,16 @@ draw_ui() {
     total_h=$img_h_cells
 
     # center block
-    off_x=$(( (term_w - total_w) / 2 ))
-    off_y=$(( (term_h - th) / 2 - 2 ))
+    off_x=$(( (term_w - total_w) / 2 - 1 ))
+    off_y=$(( (term_h - th) / 2 + 3))
     (( off_x < 0 )) && off_x=0
     (( off_y < 0 )) && off_y=0
 
     text_x=$((off_x + img_w_cells + 4))
     if (( aspect_ratio > 160 )); then
-        text_y=$((off_y + img_h_cells / 2 - 4))
+        text_y=$((off_y + img_h_cells / 2 ))
     else
-        text_y=$((off_y + img_h_cells / 2 - 2))
+        text_y=$((off_y + img_h_cells / 2 - 3))
     fi
     (( text_y < 0 )) && text_y=0
 
@@ -118,7 +118,7 @@ draw_ui() {
     tput cup $((text_y-2)) $text_x
     if [[ "$ui_state" == "no_player" ]]; then
         printf "${gray}┌─ No media players ────────────────────────┐${reset}"
-        tput cup $text_y $text_x;       printf "${gray}  Start a player to see Now Playing          ${reset}"
+        tput cup $text_y $text_x;       printf "${gray}  Let's play some music!            ${reset}"
         tput cup $((text_y+2)) $text_x; printf "${gray}└───────────────────────────────────────────┘${reset}"
     elif [[ "$ui_state" == "no_track" ]]; then
         printf "${gray}┌─ Waiting for track ───────────────────────┐${reset}"
@@ -126,15 +126,15 @@ draw_ui() {
         tput cup $((text_y+2)) $text_x; printf "${gray}└───────────────────────────────────────────┘${reset}"
     else
         printf "${gray}┌─ Now Playing ─────────────────────────────┐${reset}"
-        tput cup $((text_y-1)) $text_x; printf "${cyan}Title:${reset}  %-34.34s" "${title:-—}"
-        tput cup $text_y        $text_x; printf "${magenta}Artist:${reset} %-33.33s" "${artist:-—}"
-        tput cup $((text_y+1))  $text_x; printf "${yellow}Album:${reset}  %-34.34s" "${album:-—}"
+        tput cup $((text_y-1)) $text_x; printf "${gray}│${reset}${cyan} Title:${reset}  %-34.34s" "${title:-—}"
+        tput cup $text_y        $text_x; printf "${gray}│${reset}${magenta} Artist:${reset} %-33.33s" "${artist:-—}"
+        tput cup $((text_y+1))  $text_x; printf "${gray}│${reset}${yellow} Album:${reset}  %-34.34s" "${album:-—}"
         tput cup $((text_y+2))  $text_x; printf "${gray}└───────────────────────────────────────────┘${reset}"
     fi
 
     # controls
     tput cup $((text_y+4)) $text_x
-    printf "${gray}[Space]${reset} Play/Pause   ${gray}[n]${reset} Next   ${gray}[p]${reset} Prev"
+    printf "${gray}[${reset}${ugray}P${reset}${gray}ause]${reset} 󰐎  ${gray}  [${ugray}B${reset}${gray}ack]${reset} 󰒮 ${gray}  [${ugray}N${reset}${gray}ext]${reset} 󰒭 ${gray}  [${ugray}Q${reset}${gray}uit]${reset}   "
 }
 
 # simple helpers
@@ -149,9 +149,9 @@ while true; do
     # keys
     key=$(dd bs=1 count=1 2>/dev/null)
     case "$key" in
-        " ") playerctl play-pause 2>/dev/null ;;
+        " "|p) playerctl play-pause 2>/dev/null ;;
         n)   playerctl next 2>/dev/null ;;
-        p)   playerctl previous 2>/dev/null ;;
+        b)   playerctl previous 2>/dev/null ;;
         q|Q) cleanup ;;
     esac
 

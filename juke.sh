@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 # Kitty "Now Playing" viewer — stable geometry, proper skeleton, controls
 
@@ -117,7 +116,7 @@ draw_ui() {
     # info panel
     tput cup $((text_y-2)) $text_x
     if [[ "$ui_state" == "no_player" ]]; then
-        printf "${gray}┌─ No media players ────────────────────────┐${reset}"
+        printf "${gray}┌─ No media player found ───────────────────┐${reset}"
         tput cup $text_y $text_x;       printf "${gray}  Let's play some music!            ${reset}"
         tput cup $((text_y+2)) $text_x; printf "${gray}└───────────────────────────────────────────┘${reset}"
     elif [[ "$ui_state" == "no_track" ]]; then

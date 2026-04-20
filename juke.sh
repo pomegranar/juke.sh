@@ -10,6 +10,7 @@ cleanup() {
     stty echo
     clear_screen
     kitty +kitten icat --clear 2>/dev/null
+    rm -f "$ART_CACHE" 2>/dev/null
     exit
 }
 trap cleanup INT TERM
@@ -21,12 +22,15 @@ clear_screen
 
 TEXT_BOX_WIDTH=40
 needs_redraw=1
+art=""
 last_art=""
+last_raw_art=""
 last_title=""
 # remember last known art size in cells so skeleton matches
 last_w_cells=20
 last_h_cells=10
 
+ART_CACHE="/tmp/kitty_nowplaying_art_cache.jpg"
 PLACEHOLDER="/tmp/kitty_nowplaying_placeholder.png"
 make_placeholder() {
     if [[ ! -f "$PLACEHOLDER" ]]; then
@@ -155,29 +159,57 @@ while true; do
     esac
 
     ui_state="playing"
-    art=""
     title=""
     artist=""
     album=""
 
     if ! have_players; then
         ui_state="no_player"
+        art=""
     else
         status="$(player_status)"
         case "$status" in
             Playing|Paused)
                 # metadata (quiet during track gaps)
-                art=$(playerctl metadata mpris:artUrl 2>/dev/null | sed 's|file://||')
                 title=$(playerctl metadata xesam:title 2>/dev/null)
                 artist=$(playerctl metadata xesam:artist 2>/dev/null)
                 album=$(playerctl metadata xesam:album 2>/dev/null)
+
+                # resolve art URL — keep last valid art until track changes
+                raw_art=$(playerctl metadata mpris:artUrl 2>/dev/null)
+                if [[ -n "$raw_art" ]]; then
+                    if [[ "$raw_art" == file://* ]]; then
+                        new_art="${raw_art#file://}"
+                    elif [[ "$raw_art" == http://* || "$raw_art" == https://* ]]; then
+                        if [[ "$raw_art" != "$last_raw_art" ]]; then
+                            if curl -sf -o "$ART_CACHE" "$raw_art" 2>/dev/null; then
+                                new_art="$ART_CACHE"
+                            else
+                                new_art="$art"
+                            fi
+                        else
+                            new_art="$ART_CACHE"
+                        fi
+                    else
+                        new_art="$raw_art"
+                    fi
+                    last_raw_art="$raw_art"
+                    art="$new_art"
+                elif [[ "$title" != "$last_title" ]]; then
+                    # track changed but art URL is empty — clear stale art
+                    art=""
+                fi
+                # art stays as previous value if URL is transiently empty
+
                 # if everything is empty, treat as no_track
                 if [[ -z "$title$artist$album" ]]; then
                     ui_state="no_track"
+                    art=""
                 fi
                 ;;
             *)
                 ui_state="no_track"
+                art=""
                 ;;
         esac
     fi
